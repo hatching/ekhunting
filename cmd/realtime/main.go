@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2019 Hatching B.V.
+// Copyright (C) 2019 Hatching B.V.
 // All rights reserved.
 
 package main
@@ -16,13 +16,10 @@ func main() {
 		log.Fatalln(os.Args[0], "<addr> <cwd>")
 	}
 
-	addr := os.Args[1]
-	cwd := os.Args[2]
-
 	es := realtime.EventServer{}
-	es.SetCwd(cwd)
-	es.Connect(addr)
-	es.Subscribe("massurltask", "tosti")
+	es.Connect(os.Args[1])
+	es.SetCwd(os.Args[2])
+	es.Subscribe("massurltask")
 
 	for {
 		time.Sleep(100 * time.Millisecond)

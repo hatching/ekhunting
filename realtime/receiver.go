@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2019 Hatching B.V.
+// Copyright (C) 2019 Hatching B.V.
 // All rights reserved.
 
 package realtime
@@ -14,7 +14,7 @@ import (
 	"path/filepath"
 	"time"
 
-	"hatching.io/triage/events/onemon"
+	"hatching.io/realtime/events/onemon"
 )
 
 type EventServer struct {
@@ -48,11 +48,11 @@ type (
 	}
 )
 
-func (e *EventServer) SetCwd(cwd string) {
-	e.cwd = cwd
+func (es *EventServer) SetCwd(cwd string) {
+	es.cwd = cwd
 }
 
-func (e *EventServer) Subscribe(events ...string) error {
+func (es *EventServer) Subscribe(events ...string) error {
 	sub := Subscribe{}
 	sub.Type = "protocol"
 	sub.Action = "subscribe"
@@ -61,27 +61,28 @@ func (e *EventServer) Subscribe(events ...string) error {
 	if err != nil {
 		return err
 	}
-	e.conn.Write(body)
-	e.conn.Write([]byte{'\n'})
+
+	es.conn.Write(body)
+	es.conn.Write([]byte{'\n'})
 	return nil
 }
 
-func (e *EventServer) Connect(addr string) {
+func (es *EventServer) Connect(addr string) {
 	conn, err := net.Dial("tcp", addr)
 	if err != nil {
 		log.Fatalln("error connecting eventserver", err)
 	}
 
-	e.conn = conn
-	e.rbuf = bufio.NewReader(e.conn)
-	go e.Reader()
+	es.conn = conn
+	es.rbuf = bufio.NewReader(es.conn)
+	go es.Reader()
 }
 
-func (e *EventServer) Reader() {
+func (es *EventServer) Reader() {
 	for {
-		line, err := e.rbuf.ReadBytes('\n')
+		line, err := es.rbuf.ReadBytes('\n')
 		if err != nil {
-			log.Fatalln("error reading first json blob", err)
+			log.Fatalln("error reading json blob", err)
 		}
 
 		log.Println(">", string(line))
@@ -89,26 +90,27 @@ func (e *EventServer) Reader() {
 		var event Event
 		err = json.Unmarshal(line, &event)
 		if err != nil {
-			log.Fatalln("error", err)
+			log.Fatalln("error parsing json blob", err)
 		}
 
 		log.Println("?", event.Body)
-		e.Handle(event.Body.Event, event.Body)
+		es.Handle(event.Body.Event, event.Body)
 	}
 }
 
-func (e *EventServer) Handle(event string, body EventBody) {
+func (es *EventServer) Handle(event string, body EventBody) {
 	if event == "massurltask" {
 		log.Println("task!", body.Body.TaskId)
-		go e.onemonReader(body.Body.TaskId)
+		go es.onemonReader(body.Body.TaskId)
 	}
 }
 
-func (e *EventServer) onemonReader(taskid int) error {
+func (es *EventServer) onemonReader(taskid int) error {
 	var f io.Reader
 	var err error
+
 	filepath := filepath.Join(
-		e.cwd, "storage", "analyses", fmt.Sprintf("%d", taskid),
+		es.cwd, "storage", "analyses", fmt.Sprintf("%d", taskid),
 		"logs", "onemon.pb",
 	)
 
@@ -133,12 +135,9 @@ func (e *EventServer) onemonReader(taskid int) error {
 			return err
 		}
 
-		switch v := m.(type) {
+		switch msg.(type) {
 		case *onemon.Process:
-			log.Println("process", v)
-
-		case *onemon.Registry:
-			log.Println("registry", v)
+			log.Println("process", msg)
 		}
 	}
 }
