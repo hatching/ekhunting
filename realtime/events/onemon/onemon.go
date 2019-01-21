@@ -31,17 +31,16 @@ func NextMessage(r io.Reader) (interface{}, error) {
 }
 
 func NextEvent(r io.Reader) (kind int, data []byte, err error) {
-	var header [4]byte
+	var header []byte
+
 	// 3 byte size
 	// 1 byte kind
 	// <protobuf>
-	n, err := r.Read(header[:])
-	if err != nil {
-		return
-	} else if n != 4 {
-		err = ErrShortHeader
-		return
+	header, err = ioutil.ReadAll(io.LimitReader(r, 4))
+	if err != nil || len(header) != 4 {
+		return 0, []byte{}, io.EOF
 	}
+
 	sz := varint(header[:3])
 	kind = int(header[3])
 	data, err = ioutil.ReadAll(io.LimitReader(r, int64(sz)))

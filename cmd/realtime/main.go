@@ -12,11 +12,18 @@ import (
 )
 
 func main() {
+	es := realtime.EventServer{}
+
+	// Development switch, processes a onemon.pb file.
+	if len(os.Args) == 2 {
+		es.OnemonReaderPath(os.Args[1])
+		return
+	}
+
 	if len(os.Args) != 3 {
 		log.Fatalln(os.Args[0], "<addr> <cwd>")
 	}
 
-	es := realtime.EventServer{}
 	es.Connect(os.Args[1])
 	es.SetCwd(os.Args[2])
 	es.Subscribe("massurltask")

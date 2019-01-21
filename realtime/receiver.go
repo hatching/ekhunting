@@ -94,25 +94,28 @@ func (es *EventServer) Reader() {
 		}
 
 		log.Println("?", event.Body)
-		es.Handle(event.Body.Event, event.Body)
+		es.Handle(event.Body)
 	}
 }
 
-func (es *EventServer) Handle(event string, body EventBody) {
-	if event == "massurltask" {
+func (es *EventServer) Handle(body EventBody) {
+	if body.Event == "massurltask" {
 		log.Println("task!", body.Body.TaskId)
-		go es.onemonReader(body.Body.TaskId)
+		go es.OnemonReaderTask(body.Body.TaskId)
 	}
 }
 
-func (es *EventServer) onemonReader(taskid int) error {
-	var f io.Reader
-	var err error
-
+func (es *EventServer) OnemonReaderTask(taskid int) error {
 	filepath := filepath.Join(
 		es.cwd, "storage", "analyses", fmt.Sprintf("%d", taskid),
 		"logs", "onemon.pb",
 	)
+	return es.OnemonReaderPath(filepath)
+}
+
+func (es *EventServer) OnemonReaderPath(filepath string) error {
+	var f io.Reader
+	var err error
 
 	for {
 		f, err = os.Open(filepath)
@@ -126,13 +129,17 @@ func (es *EventServer) onemonReader(taskid int) error {
 		break
 	}
 
+	r := bufio.NewReader(f)
+	if b, _ := r.Peek(4); string(b) == "FILE" {
+		// Skip file header
+		r.ReadLine()
+		r.ReadLine()
+	}
+
 	for {
-		msg, err := onemon.NextMessage(f)
+		msg, err := onemon.NextMessage(r)
 		if err == io.EOF {
 			return nil
-		}
-		if err != nil {
-			return err
 		}
 
 		switch msg.(type) {
