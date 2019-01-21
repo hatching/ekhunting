@@ -119,15 +119,12 @@ func (es *EventServer) OnemonReaderTask(taskid int) error {
 }
 
 func (es *EventServer) OnemonReaderPath(filepath string) error {
-	var f io.Reader
-	var err error
-
 	dispatcher := &Dispatch{}
 	dispatcher.Init(es.sigs())
 
 	for {
-		f, err = os.Open(filepath)
-		if os.IsNotExist(err) {
+		fi, err := os.Stat(filepath)
+		if os.IsNotExist(err) || fi.Size() < 1024 {
 			time.Sleep(100 * time.Millisecond)
 			continue
 		}
@@ -135,6 +132,11 @@ func (es *EventServer) OnemonReaderPath(filepath string) error {
 			log.Fatalln("error", err)
 		}
 		break
+	}
+
+	f, err := os.Open(filepath)
+	if err != nil {
+		log.Fatalln("error", err)
 	}
 
 	r := bufio.NewReader(f)
