@@ -8,11 +8,13 @@ import (
 	"os"
 	"time"
 
-	"hatching.io/ekhunting/realtime"
+	"hatching.io/realtime"
+	"hatching.io/realtime/signatures"
 )
 
 func main() {
 	es := realtime.EventServer{}
+	es.SetSignatures(signatures.Signatures)
 
 	// Development switch, processes a onemon.pb file.
 	if len(os.Args) == 2 {

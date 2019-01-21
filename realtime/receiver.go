@@ -21,6 +21,7 @@ type EventServer struct {
 	conn net.Conn
 	rbuf *bufio.Reader
 	cwd  string
+	sigs func() []Process
 }
 
 type (
@@ -47,6 +48,10 @@ type (
 		} `json:"body"`
 	}
 )
+
+func (es *EventServer) SetSignatures(signatures func() []Process) {
+	es.sigs = signatures
+}
 
 func (es *EventServer) SetCwd(cwd string) {
 	es.cwd = cwd
@@ -117,6 +122,9 @@ func (es *EventServer) OnemonReaderPath(filepath string) error {
 	var f io.Reader
 	var err error
 
+	dispatcher := &Dispatch{}
+	dispatcher.Init(es.sigs())
+
 	for {
 		f, err = os.Open(filepath)
 		if os.IsNotExist(err) {
@@ -142,9 +150,9 @@ func (es *EventServer) OnemonReaderPath(filepath string) error {
 			return nil
 		}
 
-		switch msg.(type) {
+		switch v := msg.(type) {
 		case *onemon.Process:
-			log.Println("process", msg)
+			dispatcher.Process(v)
 		}
 	}
 }
