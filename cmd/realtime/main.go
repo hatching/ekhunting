@@ -18,7 +18,7 @@ func main() {
 
 	// Development switch, processes a onemon.pb file.
 	if len(os.Args) == 2 {
-		es.OnemonReaderPath(os.Args[1])
+		es.OnemonReaderPath(0, os.Args[1])
 		return
 	}
 

@@ -10,6 +10,7 @@ import (
 )
 
 type ChildProcess struct {
+	Base
 	image map[uint64]string
 }
 
@@ -50,5 +51,5 @@ func (cp *ChildProcess) Process(process *onemon.Process) {
 		}
 	}
 
-	log.Println("child!", process)
+	cp.Trigger("child_process", "A malicious process was started", process.Command)
 }

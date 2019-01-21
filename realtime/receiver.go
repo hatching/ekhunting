@@ -12,6 +12,7 @@ import (
 	"net"
 	"os"
 	"path/filepath"
+	"sync"
 	"time"
 
 	"hatching.io/realtime/events/onemon"
@@ -19,6 +20,7 @@ import (
 
 type EventServer struct {
 	conn net.Conn
+	mux  sync.Mutex
 	rbuf *bufio.Reader
 	cwd  string
 	sigs func() []Process
@@ -32,9 +34,12 @@ type (
 	EventBody struct {
 		Event string `json:"event"`
 		Body  struct {
-			TaskId int    `json:"taskid"`
-			Status string `json:"status"`
-			Action string `json:"action"`
+			TaskId      int    `json:"taskid"`
+			Status      string `json:"status",omitempty`
+			Action      string `json:"action",omitempty`
+			Signature   string `json:"signature",omitempty`
+			Description string `json:"description",omitempty`
+			Ioc         string `json:"ioc",omitempty`
 		} `json:"body"`
 	}
 	Event struct {
@@ -62,13 +67,16 @@ func (es *EventServer) Subscribe(events ...string) error {
 	sub.Type = "protocol"
 	sub.Action = "subscribe"
 	sub.Body.Events = events
-	body, err := json.Marshal(&sub)
+
+	body, err := json.Marshal(sub)
 	if err != nil {
 		return err
 	}
 
+	es.mux.Lock()
 	es.conn.Write(body)
 	es.conn.Write([]byte{'\n'})
+	es.mux.Unlock()
 	return nil
 }
 
@@ -81,6 +89,31 @@ func (es *EventServer) Connect(addr string) {
 	es.conn = conn
 	es.rbuf = bufio.NewReader(es.conn)
 	go es.Reader()
+}
+
+func (es *EventServer) Trigger(taskid int, signature, description, ioc string) {
+	// If not running in realtime.
+	if es.conn == nil {
+		return
+	}
+
+	event := Event{}
+	event.Type = "event"
+	event.Body.Event = "signature"
+	event.Body.Body.TaskId = taskid
+	event.Body.Body.Signature = signature
+	event.Body.Body.Description = description
+	event.Body.Body.Ioc = ioc
+
+	blob, err := json.Marshal(event)
+	if err != nil {
+		log.Fatalln("marshal error", err)
+	}
+
+	es.mux.Lock()
+	es.conn.Write(blob)
+	es.conn.Write([]byte{'\n'})
+	es.mux.Unlock()
 }
 
 func (es *EventServer) Reader() {
@@ -115,12 +148,12 @@ func (es *EventServer) OnemonReaderTask(taskid int) error {
 		es.cwd, "storage", "analyses", fmt.Sprintf("%d", taskid),
 		"logs", "onemon.pb",
 	)
-	return es.OnemonReaderPath(filepath)
+	return es.OnemonReaderPath(taskid, filepath)
 }
 
-func (es *EventServer) OnemonReaderPath(filepath string) error {
+func (es *EventServer) OnemonReaderPath(taskid int, filepath string) error {
 	dispatcher := &Dispatch{}
-	dispatcher.Init(es.sigs())
+	dispatcher.Init(es, taskid, es.sigs())
 
 	for {
 		fi, err := os.Stat(filepath)

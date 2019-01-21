@@ -8,13 +8,18 @@ import (
 	"hatching.io/realtime/events/onemon"
 )
 
-type Empty struct {
+type Base struct {
+	Trigger func(signature, description, ioc string)
 }
 
-func (e *Empty) Init() {
+func (b *Base) SetTrigger(trigger func(signature, description, ioc string)) {
+	b.Trigger = trigger
 }
 
-func (e *Empty) Process(process *onemon.Process) {
+func (b *Base) Init() {
+}
+
+func (b *Base) Process(process *onemon.Process) {
 }
 
 func Signatures() []realtime.Process {
