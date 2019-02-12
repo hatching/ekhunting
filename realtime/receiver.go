@@ -29,17 +29,26 @@ type EventServer struct {
 type (
 	Header struct {
 		Type   string `json:"type"`
-		Action string `json:"action",omitempty`
+		Action string `json:"action,omitempty"`
 	}
 	EventBody struct {
 		Event string `json:"event"`
 		Body  struct {
-			TaskId      int    `json:"taskid"`
-			Status      string `json:"status",omitempty`
-			Action      string `json:"action",omitempty`
-			Signature   string `json:"signature",omitempty`
-			Description string `json:"description",omitempty`
-			Ioc         string `json:"ioc",omitempty`
+			TaskId int    `json:"taskid"`
+			Status string `json:"status,omitempty"`
+			Action string `json:"action,omitempty"`
+
+			// Signature event.
+			Signature   string `json:"signature,omitempty"`
+			Description string `json:"description,omitempty"`
+			Ioc         string `json:"ioc,omitempty"`
+
+			// Netflow event.
+			Proto   int    `json:"proto,omitempty"`
+			Srcip   string `json:"srcip,omitempty"`
+			Dstip   string `json:"dstip,omitempty"`
+			Srcport int    `json:"srcport,omitempty"`
+			Dstport int    `json:"dstport,omitempty"`
 		} `json:"body"`
 	}
 	Event struct {
@@ -104,6 +113,33 @@ func (es *EventServer) Trigger(taskid int, signature, description, ioc string) {
 	event.Body.Body.Signature = signature
 	event.Body.Body.Description = description
 	event.Body.Body.Ioc = ioc
+
+	blob, err := json.Marshal(event)
+	if err != nil {
+		log.Fatalln("marshal error", err)
+	}
+
+	es.mux.Lock()
+	es.conn.Write(blob)
+	es.conn.Write([]byte{'\n'})
+	es.mux.Unlock()
+}
+
+func (es *EventServer) NetworkFlow(taskid int, proto int, srcip, dstip net.IP, srcport, dstport int) {
+	// If not running in realtime.
+	if es.conn == nil {
+		return
+	}
+
+	event := Event{}
+	event.Type = "event"
+	event.Body.Event = "netflow"
+	event.Body.Body.TaskId = taskid
+	event.Body.Body.Proto = proto
+	event.Body.Body.Srcip = srcip.String()
+	event.Body.Body.Dstip = dstip.String()
+	event.Body.Body.Srcport = srcport
+	event.Body.Body.Dstport = dstport
 
 	blob, err := json.Marshal(event)
 	if err != nil {
@@ -188,6 +224,8 @@ func (es *EventServer) OnemonReaderPath(taskid int, filepath string) error {
 		switch v := msg.(type) {
 		case *onemon.Process:
 			dispatcher.Process(v)
+		case *onemon.NetworkFlow:
+			dispatcher.NetworkFlow(v)
 		}
 	}
 }

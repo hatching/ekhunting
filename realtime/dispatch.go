@@ -4,6 +4,8 @@
 package realtime
 
 import (
+	"net"
+
 	"hatching.io/realtime/events/onemon"
 )
 
@@ -33,6 +35,17 @@ func (d *Dispatch) Process(process *onemon.Process) {
 	for _, signature := range d.signatures {
 		signature.Process(process)
 	}
+}
+
+func int2ipv4(ip uint32) net.IP {
+	return net.IPv4(uint8(ip), uint8(ip>>8), uint8(ip>>16), uint8(ip>>24))
+}
+
+func (d *Dispatch) NetworkFlow(netflow *onemon.NetworkFlow) {
+	d.es.NetworkFlow(
+		d.taskid, int(netflow.Proto), int2ipv4(netflow.Srcip),
+		int2ipv4(netflow.Dstip), int(netflow.Srcport), int(netflow.Dstport),
+	)
 }
 
 func (d *Dispatch) Trigger(signature, description, ioc string) {

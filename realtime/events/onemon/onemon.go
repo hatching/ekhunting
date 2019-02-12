@@ -1,4 +1,4 @@
-// Copyright (C) 2019 Hatching B.V.
+// Copyright (C) 2018-2019 Hatching B.V.
 // All rights reserved.
 
 package onemon
@@ -65,6 +65,8 @@ func MessageByType(kind int) proto.Message {
 	switch kind {
 	case 1:
 		return &Process{}
+	case 12:
+		return &NetworkFlow{}
 	}
 	return nil
 }

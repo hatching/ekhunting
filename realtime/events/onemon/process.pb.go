@@ -14,27 +14,35 @@ type ProcessStatus int32
 const (
 	ProcessStatus_Create    ProcessStatus = 0
 	ProcessStatus_Terminate ProcessStatus = 1
+	ProcessStatus_Existing  ProcessStatus = 2
+	ProcessStatus_Ignore    ProcessStatus = 3
 )
 
 var ProcessStatus_name = map[int32]string{
 	0: "Create",
 	1: "Terminate",
+	2: "Existing",
+	3: "Ignore",
 }
 var ProcessStatus_value = map[string]int32{
 	"Create":    0,
 	"Terminate": 1,
+	"Existing":  2,
+	"Ignore":    3,
 }
 
 func (x ProcessStatus) String() string {
 	return proto.EnumName(ProcessStatus_name, int32(x))
 }
 
+// ID: 1
 type Process struct {
 	Status  ProcessStatus `protobuf:"varint,1,opt,name=status,enum=onemon.ProcessStatus" json:"status,omitempty"`
 	Pid     uint64        `protobuf:"varint,2,opt,name=pid" json:"pid,omitempty"`
 	Ppid    uint64        `protobuf:"varint,3,opt,name=ppid" json:"ppid,omitempty"`
 	Image   string        `protobuf:"bytes,4,opt,name=image" json:"image,omitempty"`
 	Command string        `protobuf:"bytes,5,opt,name=command" json:"command,omitempty"`
+	Orig    bool          `protobuf:"varint,6,opt,name=orig" json:"orig,omitempty"`
 }
 
 func (m *Process) Reset()         { *m = Process{} }

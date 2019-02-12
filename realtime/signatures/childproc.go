@@ -26,6 +26,12 @@ func (sig *ChildProcess) Init() {
 }
 
 func (sig *ChildProcess) Process(process *onemon.Process) {
+	if process.Status == onemon.ProcessStatus_Existing {
+		return
+	}
+	if process.Status == onemon.ProcessStatus_Ignore {
+		return
+	}
 	if process.Status == onemon.ProcessStatus_Terminate {
 		delete(sig.image, process.Pid)
 		return
