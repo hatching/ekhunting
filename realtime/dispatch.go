@@ -45,6 +45,7 @@ func (d *Dispatch) NetworkFlow(netflow *onemon.NetworkFlow) {
 	d.es.NetworkFlow(
 		d.taskid, int(netflow.Proto), int2ipv4(netflow.Srcip),
 		int2ipv4(netflow.Dstip), int(netflow.Srcport), int(netflow.Dstport),
+		int(netflow.Pid),
 	)
 }
 
