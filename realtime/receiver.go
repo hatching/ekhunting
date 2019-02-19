@@ -154,6 +154,28 @@ func (es *EventServer) NetworkFlow(taskid int, proto int, srcip, dstip net.IP, s
 	es.mux.Unlock()
 }
 
+func (es *EventServer) Finished(taskid int) {
+	// If not running in realtime.
+	if es.conn == nil {
+		return
+	}
+
+	event := Event{}
+	event.Type = "event"
+	event.Body.Event = "finished"
+	event.Body.Body.TaskId = taskid
+
+	blob, err := json.Marshal(event)
+	if err != nil {
+		log.Fatalln("marshal error", err)
+	}
+
+	es.mux.Lock()
+	es.conn.Write(blob)
+	es.conn.Write([]byte{'\n'})
+	es.mux.Unlock()
+}
+
 func (es *EventServer) Reader() {
 	for {
 		line, err := es.rbuf.ReadBytes('\n')
@@ -220,7 +242,7 @@ func (es *EventServer) OnemonReaderPath(taskid int, filepath string) error {
 	for {
 		msg, err := onemon.NextMessage(r)
 		if err == io.EOF {
-			return nil
+			break
 		}
 
 		switch v := msg.(type) {
@@ -230,4 +252,7 @@ func (es *EventServer) OnemonReaderPath(taskid int, filepath string) error {
 			dispatcher.NetworkFlow(v)
 		}
 	}
+
+	es.Finished(taskid)
+	return nil
 }
