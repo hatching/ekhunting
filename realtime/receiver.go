@@ -142,8 +142,10 @@ func (es *EventServer) NetworkFlow(taskid int, proto int, srcip, dstip net.IP, s
 	event.Body.Body.Dstip = dstip.String()
 	event.Body.Body.Srcport = srcport
 	event.Body.Body.Dstport = dstport
-	event.Body.Body.Pid = int(process.Pid)
-	event.Body.Body.Ppid = int(process.Ppid)
+	if process != nil {
+		event.Body.Body.Pid = int(process.Pid)
+		event.Body.Body.Ppid = int(process.Ppid)
+	}
 
 	blob, err := json.Marshal(event)
 	if err != nil {
