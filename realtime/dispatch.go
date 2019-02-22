@@ -19,12 +19,14 @@ type Dispatch struct {
 	es         *EventServer
 	taskid     int
 	signatures []Process
+	tree       map[int]*onemon.Process
 }
 
 func (d *Dispatch) Init(es *EventServer, taskid int, signatures []Process) {
 	d.taskid = taskid
 	d.es = es
 	d.signatures = signatures
+	d.tree = map[int]*onemon.Process{}
 	for _, signature := range d.signatures {
 		signature.SetTrigger(d.Trigger)
 		signature.Init()
@@ -32,6 +34,7 @@ func (d *Dispatch) Init(es *EventServer, taskid int, signatures []Process) {
 }
 
 func (d *Dispatch) Process(process *onemon.Process) {
+	d.tree[int(process.Pid)] = process
 	for _, signature := range d.signatures {
 		signature.Process(process)
 	}
@@ -45,7 +48,7 @@ func (d *Dispatch) NetworkFlow(netflow *onemon.NetworkFlow) {
 	d.es.NetworkFlow(
 		d.taskid, int(netflow.Proto), int2ipv4(netflow.Srcip),
 		int2ipv4(netflow.Dstip), int(netflow.Srcport), int(netflow.Dstport),
-		int(netflow.Pid),
+		d.tree[int(netflow.Pid)],
 	)
 }
 

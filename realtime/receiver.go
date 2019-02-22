@@ -50,6 +50,7 @@ type (
 			Srcport int    `json:"srcport,omitempty"`
 			Dstport int    `json:"dstport,omitempty"`
 			Pid     int    `json:"pid,omitempty"`
+			Ppid    int    `json:"ppid,omitempty"`
 		} `json:"body"`
 	}
 	Event struct {
@@ -126,7 +127,7 @@ func (es *EventServer) Trigger(taskid int, signature, description, ioc string) {
 	es.mux.Unlock()
 }
 
-func (es *EventServer) NetworkFlow(taskid int, proto int, srcip, dstip net.IP, srcport, dstport, pid int) {
+func (es *EventServer) NetworkFlow(taskid int, proto int, srcip, dstip net.IP, srcport, dstport int, process *onemon.Process) {
 	// If not running in realtime.
 	if es.conn == nil {
 		return
@@ -141,7 +142,8 @@ func (es *EventServer) NetworkFlow(taskid int, proto int, srcip, dstip net.IP, s
 	event.Body.Body.Dstip = dstip.String()
 	event.Body.Body.Srcport = srcport
 	event.Body.Body.Dstport = dstport
-	event.Body.Body.Pid = pid
+	event.Body.Body.Pid = int(process.Pid)
+	event.Body.Body.Ppid = int(process.Ppid)
 
 	blob, err := json.Marshal(event)
 	if err != nil {

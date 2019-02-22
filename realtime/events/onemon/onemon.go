@@ -32,7 +32,6 @@ func NextMessage(r io.Reader) (interface{}, error) {
 
 func NextEvent(r io.Reader) (kind int, data []byte, err error) {
 	var header []byte
-
 	// 3 byte size
 	// 1 byte kind
 	// <protobuf>
@@ -40,7 +39,6 @@ func NextEvent(r io.Reader) (kind int, data []byte, err error) {
 	if err != nil || len(header) != 4 {
 		return 0, []byte{}, io.EOF
 	}
-
 	sz := varint(header[:3])
 	kind = int(header[3])
 	data, err = ioutil.ReadAll(io.LimitReader(r, int64(sz)))
