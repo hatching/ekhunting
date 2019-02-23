@@ -17,8 +17,14 @@ var iexplore = map[string]bool{
 	"\\??\\C:\\Program Files\\Internet Explorer\\iexplore.exe":       true,
 	"\\??\\C:\\Program Files (x86)\\Internet Explorer\\IEXPLORE.EXE": true,
 }
-var whitelist = map[string]bool{
+var firefox = map[string]bool{
+	"\\??\\C:\\Program Files (x86)\\Mozilla Firefox\\firefox.exe": true,
+}
+var whitelist_ie = map[string]bool{
 	"\\??\\C:\\Windows\\System32\\ie4uinit.exe": true,
+}
+var whitelist_ff = map[string]bool{
+	"\\??\\C:\\Program Files (x86)\\Mozilla Firefox\\uninstall\\helper.exe": true,
 }
 
 func (sig *ChildProcess) Init() {
@@ -44,6 +50,11 @@ func (sig *ChildProcess) Process(process *onemon.Process) {
 		return
 	}
 
+	// Firefox process.
+	if _, ok := firefox[process.Image]; ok {
+		return
+	}
+
 	// Not a tracked process (ignore for now).
 	if _, ok := sig.image[process.Ppid]; !ok {
 		return
@@ -51,7 +62,14 @@ func (sig *ChildProcess) Process(process *onemon.Process) {
 
 	// Whitelisted child process of Internet Explorer.
 	if _, ok := iexplore[sig.image[process.Ppid]]; ok {
-		if _, ok := whitelist[process.Image]; ok {
+		if _, ok := whitelist_ie[process.Image]; ok {
+			return
+		}
+	}
+
+	// Whitelisted child process of Firefox.
+	if _, ok := firefox[sig.image[process.Ppid]]; ok {
+		if _, ok := whitelist_ff[process.Image]; ok {
 			return
 		}
 	}
