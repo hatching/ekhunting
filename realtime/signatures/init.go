@@ -4,8 +4,8 @@
 package signatures
 
 import (
-	"hatching.io/realtime"
-	"hatching.io/realtime/events/onemon"
+	"github.com/hatching/ekhunting/realtime"
+	"github.com/hatching/ekhunting/realtime/events/onemon"
 )
 
 type Base struct {

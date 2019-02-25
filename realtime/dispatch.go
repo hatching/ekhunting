@@ -6,7 +6,7 @@ package realtime
 import (
 	"net"
 
-	"hatching.io/realtime/events/onemon"
+	"github.com/hatching/ekhunting/realtime/events/onemon"
 )
 
 type Process interface {

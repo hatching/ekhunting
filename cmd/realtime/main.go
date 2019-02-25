@@ -8,8 +8,8 @@ import (
 	"os"
 	"time"
 
-	"hatching.io/realtime"
-	"hatching.io/realtime/signatures"
+	"github.com/hatching/ekhunting/realtime"
+	"github.com/hatching/ekhunting/realtime/signatures"
 )
 
 func main() {
