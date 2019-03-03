@@ -12,19 +12,19 @@ type ChildProcess struct {
 	image map[uint64]string
 }
 
-var initial = "\\??\\C:\\Program Files\\Internet Explorer\\iexplore.exe"
+var initial = "C:\\Program Files\\Internet Explorer\\iexplore.exe"
 var iexplore = map[string]bool{
-	"\\??\\C:\\Program Files\\Internet Explorer\\iexplore.exe":       true,
-	"\\??\\C:\\Program Files (x86)\\Internet Explorer\\IEXPLORE.EXE": true,
+	"C:\\Program Files\\Internet Explorer\\iexplore.exe":       true,
+	"C:\\Program Files (x86)\\Internet Explorer\\IEXPLORE.EXE": true,
 }
 var firefox = map[string]bool{
-	"\\??\\C:\\Program Files (x86)\\Mozilla Firefox\\firefox.exe": true,
+	"C:\\Program Files (x86)\\Mozilla Firefox\\firefox.exe": true,
 }
 var whitelist_ie = map[string]bool{
-	"\\??\\C:\\Windows\\System32\\ie4uinit.exe": true,
+	"C:\\Windows\\System32\\ie4uinit.exe": true,
 }
 var whitelist_ff = map[string]bool{
-	"\\??\\C:\\Program Files (x86)\\Mozilla Firefox\\uninstall\\helper.exe": true,
+	"C:\\Program Files (x86)\\Mozilla Firefox\\uninstall\\helper.exe": true,
 }
 
 func (sig *ChildProcess) Init() {
