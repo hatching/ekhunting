@@ -4,6 +4,8 @@
 package signatures
 
 import (
+	"regexp"
+
 	"github.com/hatching/ekhunting/realtime/events/onemon"
 )
 
@@ -26,6 +28,12 @@ var whitelist_ie = map[string]bool{
 var whitelist_ff = map[string]bool{
 	"C:\\Program Files (x86)\\Mozilla Firefox\\uninstall\\helper.exe": true,
 }
+
+var (
+	ieRundll32Process = regexp.MustCompile(
+		`^C:\\Windows\\system32\\inetcpl.cpl,ClearMyTracksByProcess Flags:\d+ WinX:0 WinY:0 IEFrame:0000000000000000`,
+	)
+)
 
 func (sig *ChildProcess) Init() {
 	sig.image = map[uint64]string{}
@@ -63,6 +71,10 @@ func (sig *ChildProcess) Process(process *onemon.Process) {
 	// Whitelisted child process of Internet Explorer.
 	if _, ok := iexplore[sig.image[process.Ppid]]; ok {
 		if _, ok := whitelist_ie[process.Image]; ok {
+			return
+		}
+		if process.Image == "C:\\Windows\\system32\\rundll32.exe" &&
+			ieRundll32Process.MatchString(process.Command) {
 			return
 		}
 	}
