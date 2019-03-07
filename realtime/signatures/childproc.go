@@ -31,7 +31,7 @@ var whitelist_ff = map[string]bool{
 
 var (
 	ieRundll32Process = regexp.MustCompile(
-		`^C:\\Windows\\system32\\inetcpl.cpl,ClearMyTracksByProcess Flags:\d+ WinX:0 WinY:0 IEFrame:0000000000000000`,
+		`^C:\\Windows\\system32\\rundll32.exe C:\\Windows\\system32\\inetcpl.cpl,ClearMyTracksByProcess Flags:\d+ WinX:0 WinY:0 IEFrame:0000000000000000`,
 	)
 )
 
