@@ -83,22 +83,24 @@ func (es *EventServer) SetCwd(cwd string) {
 	es.cwd = cwd
 }
 
-func (es *EventServer) Subscribe(events ...string) error {
-	sub := Subscribe{}
-	sub.Type = "protocol"
-	sub.Action = "subscribe"
-	sub.Body.Events = events
-
-	body, err := json.Marshal(sub)
+func (es *EventServer) sendEvent(event interface{}) {
+	blob, err := json.Marshal(event)
 	if err != nil {
-		return err
+		log.Fatalln("error marshalling event", err)
 	}
 
 	es.mux.Lock()
-	es.conn.Write(body)
+	es.conn.Write(blob)
 	es.conn.Write([]byte{'\n'})
 	es.mux.Unlock()
-	return nil
+}
+
+func (es *EventServer) Subscribe(events ...string) {
+	event := Subscribe{}
+	event.Type = "protocol"
+	event.Action = "subscribe"
+	event.Body.Events = events
+	es.sendEvent(event)
 }
 
 func (es *EventServer) Connect(addr string) {
@@ -125,16 +127,7 @@ func (es *EventServer) Trigger(taskid int, signature, description, ioc string) {
 	event.Body.Body.Signature = signature
 	event.Body.Body.Description = description
 	event.Body.Body.Ioc = ioc
-
-	blob, err := json.Marshal(event)
-	if err != nil {
-		log.Fatalln("marshal error", err)
-	}
-
-	es.mux.Lock()
-	es.conn.Write(blob)
-	es.conn.Write([]byte{'\n'})
-	es.mux.Unlock()
+	es.sendEvent(event)
 }
 
 func (es *EventServer) NetworkFlow(taskid int, proto int, srcip, dstip net.IP, srcport, dstport int, process *onemon.Process) {
@@ -156,16 +149,7 @@ func (es *EventServer) NetworkFlow(taskid int, proto int, srcip, dstip net.IP, s
 		event.Body.Body.Pid = int(process.Pid)
 		event.Body.Body.Ppid = int(process.Ppid)
 	}
-
-	blob, err := json.Marshal(event)
-	if err != nil {
-		log.Fatalln("marshal error", err)
-	}
-
-	es.mux.Lock()
-	es.conn.Write(blob)
-	es.conn.Write([]byte{'\n'})
-	es.mux.Unlock()
+	es.sendEvent(event)
 }
 
 func (es *EventServer) TlsKeys(taskid int, tlskeys map[string]string) {
@@ -185,15 +169,7 @@ func (es *EventServer) TlsKeys(taskid int, tlskeys map[string]string) {
 		})
 	}
 
-	blob, err := json.Marshal(event)
-	if err != nil {
-		log.Fatalln("marshal error", err)
-	}
-
-	es.mux.Lock()
-	es.conn.Write(blob)
-	es.conn.Write([]byte{'\n'})
-	es.mux.Unlock()
+	es.sendEvent(event)
 }
 
 func (es *EventServer) Error(taskid int, err string) {
@@ -207,16 +183,7 @@ func (es *EventServer) Error(taskid int, err string) {
 	event.Body.Event = "error"
 	event.Body.Body.TaskId = taskid
 	event.Body.Body.Error = err
-
-	blob, err_ := json.Marshal(event)
-	if err_ != nil {
-		log.Fatalln("marshal error", err_)
-	}
-
-	es.mux.Lock()
-	es.conn.Write(blob)
-	es.conn.Write([]byte{'\n'})
-	es.mux.Unlock()
+	es.sendEvent(event)
 }
 
 func (es *EventServer) Finished(taskid int, action string) {
@@ -230,16 +197,7 @@ func (es *EventServer) Finished(taskid int, action string) {
 	event.Body.Event = "finished"
 	event.Body.Body.TaskId = taskid
 	event.Body.Body.Action = action
-
-	blob, err := json.Marshal(event)
-	if err != nil {
-		log.Fatalln("marshal error", err)
-	}
-
-	es.mux.Lock()
-	es.conn.Write(blob)
-	es.conn.Write([]byte{'\n'})
-	es.mux.Unlock()
+	es.sendEvent(event)
 }
 
 func (es *EventServer) Reader() {
