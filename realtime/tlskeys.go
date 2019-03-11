@@ -116,7 +116,7 @@ func ReadBsonTlsKeys(fname string) (map[string]string, error) {
 
 		switch m[obj.I] {
 		case "PRF":
-			if args[2] == "key expansion" {
+			if args[arg[obj.I]["type"]] == "key expansion" {
 				server_random := args[arg[obj.I]["server_random"]].(string)
 				master_secret := args[arg[obj.I]["master_secret"]].(string)
 				ret[server_random] = master_secret
