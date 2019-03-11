@@ -51,6 +51,11 @@ type (
 			Dstport int    `json:"dstport,omitempty"`
 			Pid     int    `json:"pid,omitempty"`
 			Ppid    int    `json:"ppid,omitempty"`
+
+			// DumpTlsKeys event (request).
+			LsassPid int `json:"lsass_pid,omitempty"`
+			// DumpTlsKeys event (response).
+			TlsKeys []TlsKeys `json:"tlskeys,omitempty"`
 		} `json:"body"`
 	}
 	Event struct {
@@ -62,6 +67,10 @@ type (
 		Body struct {
 			Events []string `json:"events"`
 		} `json:"body"`
+	}
+	TlsKeys struct {
+		SessionID    string `json:"session_id,omitempty"`
+		MasterSecret string `json:"master_secret,omitempty"`
 	}
 )
 
@@ -158,6 +167,34 @@ func (es *EventServer) NetworkFlow(taskid int, proto int, srcip, dstip net.IP, s
 	es.mux.Unlock()
 }
 
+func (es *EventServer) TlsKeys(taskid int, tlskeys map[string]string) {
+	// If not running in realtime.
+	if es.conn == nil {
+		return
+	}
+
+	event := Event{}
+	event.Type = "event"
+	event.Body.Event = "tlskeys"
+
+	event.Body.Body.TlsKeys = []TlsKeys{}
+	for session_id, master_secret := range tlskeys {
+		event.Body.Body.TlsKeys = append(event.Body.Body.TlsKeys, TlsKeys{
+			SessionID: session_id, MasterSecret: master_secret,
+		})
+	}
+
+	blob, err := json.Marshal(event)
+	if err != nil {
+		log.Fatalln("marshal error", err)
+	}
+
+	es.mux.Lock()
+	es.conn.Write(blob)
+	es.conn.Write([]byte{'\n'})
+	es.mux.Unlock()
+}
+
 func (es *EventServer) Finished(taskid int) {
 	// If not running in realtime.
 	if es.conn == nil {
@@ -201,9 +238,13 @@ func (es *EventServer) Reader() {
 }
 
 func (es *EventServer) Handle(body EventBody) {
-	if body.Event == "massurltask" {
+	switch body.Event {
+	case "massurltask":
 		log.Println("task!", body.Body.TaskId)
 		go es.OnemonReaderTask(body.Body.TaskId)
+	case "dumptls":
+		log.Println("dumptls!", body.Body.TaskId)
+		go es.DumpTlsKeys(body.Body.TaskId, body.Body.LsassPid)
 	}
 }
 
@@ -258,5 +299,43 @@ func (es *EventServer) OnemonReaderPath(taskid int, filepath string) error {
 	}
 
 	es.Finished(taskid)
+	return nil
+}
+
+func (es *EventServer) DumpTlsKeys(taskid, lsasspid int) error {
+	pcap := filepath.Join(
+		es.cwd, "storage", "analyses", fmt.Sprintf("%d", taskid), "dump.pcap",
+	)
+	bson := filepath.Join(
+		es.cwd, "storage", "analyses", fmt.Sprintf("%d", taskid),
+		"logs", fmt.Sprintf("%d.bson", lsasspid),
+	)
+	return es.DumpTlsKeysPath(taskid, pcap, bson)
+}
+
+func (es *EventServer) DumpTlsKeysPath(taskid int, pcap, bson string) error {
+	pcap_keys, err1 := ReadPcapTlsSessions(pcap)
+	bson_keys, err2 := ReadBsonTlsKeys(bson)
+	if err1 != nil || err2 != nil {
+		return fmt.Errorf("error parsing tls master secrets: %s %s", err1, err2)
+	}
+
+	// Session ID -> TLS Master Secret
+	tlskeys := map[string]string{}
+	if pcap_keys != nil && bson_keys != nil {
+		for server_random, session_id := range pcap_keys {
+			if master_secret, ok := bson_keys[server_random]; ok {
+				tlskeys[session_id] = master_secret
+			}
+		}
+		// TODO Probably not necessary, but iterate both ways just to be sure.
+		for server_random, master_secret := range bson_keys {
+			if session_id, ok := pcap_keys[server_random]; ok {
+				tlskeys[session_id] = master_secret
+			}
+		}
+
+		es.TlsKeys(taskid, tlskeys)
+	}
 	return nil
 }
