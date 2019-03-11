@@ -37,6 +37,7 @@ type (
 			TaskId int    `json:"taskid"`
 			Status string `json:"status,omitempty"`
 			Action string `json:"action,omitempty"`
+			Error  string `json:"error,omitempty"`
 
 			// Signature event.
 			Signature   string `json:"signature,omitempty"`
@@ -195,7 +196,30 @@ func (es *EventServer) TlsKeys(taskid int, tlskeys map[string]string) {
 	es.mux.Unlock()
 }
 
-func (es *EventServer) Finished(taskid int) {
+func (es *EventServer) Error(taskid int, err string) {
+	// If not running in realtime.
+	if es.conn == nil {
+		return
+	}
+
+	event := Event{}
+	event.Type = "event"
+	event.Body.Event = "error"
+	event.Body.Body.TaskId = taskid
+	event.Body.Body.Error = err
+
+	blob, err_ := json.Marshal(event)
+	if err_ != nil {
+		log.Fatalln("marshal error", err_)
+	}
+
+	es.mux.Lock()
+	es.conn.Write(blob)
+	es.conn.Write([]byte{'\n'})
+	es.mux.Unlock()
+}
+
+func (es *EventServer) Finished(taskid int, action string) {
 	// If not running in realtime.
 	if es.conn == nil {
 		return
@@ -205,6 +229,7 @@ func (es *EventServer) Finished(taskid int) {
 	event.Type = "event"
 	event.Body.Event = "finished"
 	event.Body.Body.TaskId = taskid
+	event.Body.Body.Action = action
 
 	blob, err := json.Marshal(event)
 	if err != nil {
@@ -240,23 +265,21 @@ func (es *EventServer) Reader() {
 func (es *EventServer) Handle(body EventBody) {
 	switch body.Event {
 	case "massurltask":
-		log.Println("task!", body.Body.TaskId)
 		go es.OnemonReaderTask(body.Body.TaskId)
 	case "dumptls":
-		log.Println("dumptls!", body.Body.TaskId)
 		go es.DumpTlsKeys(body.Body.TaskId, body.Body.LsassPid)
 	}
 }
 
-func (es *EventServer) OnemonReaderTask(taskid int) error {
+func (es *EventServer) OnemonReaderTask(taskid int) {
 	filepath := filepath.Join(
 		es.cwd, "storage", "analyses", fmt.Sprintf("%d", taskid),
 		"logs", "onemon.pb",
 	)
-	return es.OnemonReaderPath(taskid, filepath)
+	es.OnemonReaderPath(taskid, filepath)
 }
 
-func (es *EventServer) OnemonReaderPath(taskid int, filepath string) error {
+func (es *EventServer) OnemonReaderPath(taskid int, filepath string) {
 	dispatcher := &Dispatch{}
 	dispatcher.Init(es, taskid, es.sigs())
 
@@ -298,11 +321,10 @@ func (es *EventServer) OnemonReaderPath(taskid int, filepath string) error {
 		}
 	}
 
-	es.Finished(taskid)
-	return nil
+	es.Finished(taskid, "massurltask")
 }
 
-func (es *EventServer) DumpTlsKeys(taskid, lsasspid int) error {
+func (es *EventServer) DumpTlsKeys(taskid, lsasspid int) {
 	pcap := filepath.Join(
 		es.cwd, "storage", "analyses", fmt.Sprintf("%d", taskid), "dump.pcap",
 	)
@@ -310,14 +332,15 @@ func (es *EventServer) DumpTlsKeys(taskid, lsasspid int) error {
 		es.cwd, "storage", "analyses", fmt.Sprintf("%d", taskid),
 		"logs", fmt.Sprintf("%d.bson", lsasspid),
 	)
-	return es.DumpTlsKeysPath(taskid, pcap, bson)
+	es.DumpTlsKeysPath(taskid, pcap, bson)
 }
 
-func (es *EventServer) DumpTlsKeysPath(taskid int, pcap, bson string) error {
+func (es *EventServer) DumpTlsKeysPath(taskid int, pcap, bson string) {
 	pcap_keys, err1 := ReadPcapTlsSessions(pcap)
 	bson_keys, err2 := ReadBsonTlsKeys(bson)
 	if err1 != nil || err2 != nil {
-		return fmt.Errorf("error parsing tls master secrets: %s %s", err1, err2)
+		es.Error(taskid, fmt.Sprintf("error parsing tls master secrets: %s %s", err1, err2))
+		return
 	}
 
 	// Session ID -> TLS Master Secret
@@ -337,5 +360,5 @@ func (es *EventServer) DumpTlsKeysPath(taskid int, pcap, bson string) error {
 
 		es.TlsKeys(taskid, tlskeys)
 	}
-	return nil
+	es.Finished(taskid, "dumptls")
 }
