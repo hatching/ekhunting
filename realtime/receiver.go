@@ -176,7 +176,7 @@ func (es *EventServer) TlsKeys(taskid int, tlskeys map[string]string) {
 	event := Event{}
 	event.Type = "event"
 	event.Body.Event = "tlskeys"
-
+	event.Body.Body.TaskId = taskid
 	event.Body.Body.TlsKeys = []TlsKeys{}
 	for session_id, master_secret := range tlskeys {
 		event.Body.Body.TlsKeys = append(event.Body.Body.TlsKeys, TlsKeys{

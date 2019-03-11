@@ -29,6 +29,7 @@ func main() {
 	es.Connect(os.Args[1])
 	es.SetCwd(os.Args[2])
 	es.Subscribe("massurltask")
+	es.Subscribe("dumptls")
 
 	for {
 		time.Sleep(100 * time.Millisecond)
