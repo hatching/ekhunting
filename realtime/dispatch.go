@@ -52,6 +52,19 @@ func (d *Dispatch) NetworkFlow(netflow *onemon.NetworkFlow) {
 	)
 }
 
+func (d *Dispatch) Syscall(obj interface{}) {
+	switch v := obj.(type) {
+	case *onemon.SyscallS:
+		if v.Kind == onemon.SyscallSKind_JsGlobalObjectDefaultEvalHelper {
+			d.es.Javascript(d.taskid, int(v.Pid), v.Arg0, "no context")
+		}
+	case *onemon.SyscallSS:
+		if v.Kind == onemon.SyscallSSKind_COleScript_Compile {
+			d.es.Javascript(d.taskid, int(v.Pid), v.Arg0, v.Arg1)
+		}
+	}
+}
+
 func (d *Dispatch) Trigger(signature, description, ioc string) {
 	d.es.Trigger(d.taskid, signature, description, ioc)
 }

@@ -6,14 +6,11 @@ package onemon
 import (
 	"errors"
 	"io"
-	"io/ioutil"
 
 	"github.com/golang/protobuf/proto"
 )
 
 var (
-	ErrShortHeader = errors.New("Stream ended before end-of-header")
-	ErrShortData   = errors.New("Stream ended before end-of-data")
 	ErrUnsupported = errors.New("Unsupported message type")
 )
 
@@ -30,22 +27,34 @@ func NextMessage(r io.Reader) (interface{}, error) {
 	return e, err
 }
 
+func readAll(r io.Reader, buf []byte) (err error) {
+	remain := len(buf)
+	for remain > 0 {
+		n, err := r.Read(buf)
+		if err != nil {
+			return err
+		}
+		remain -= n
+		buf = buf[n:]
+	}
+	return nil
+}
+
 func NextEvent(r io.Reader) (kind int, data []byte, err error) {
-	var header []byte
+	var header [4]byte
 	// 3 byte size
 	// 1 byte kind
 	// <protobuf>
-	header, err = ioutil.ReadAll(io.LimitReader(r, 4))
-	if err != nil || len(header) != 4 {
-		return 0, []byte{}, io.EOF
+	err = readAll(r, header[:])
+	if err != nil {
+		return 0, nil, err
 	}
 	sz := varint(header[:3])
 	kind = int(header[3])
-	data, err = ioutil.ReadAll(io.LimitReader(r, int64(sz)))
+	data = make([]byte, sz)
+	err = readAll(r, data)
 	if err != nil {
 		return
-	} else if len(data) != sz {
-		err = ErrShortData
 	}
 	return
 }
@@ -65,6 +74,10 @@ func MessageByType(kind int) proto.Message {
 		return &Process{}
 	case 12:
 		return &NetworkFlow{}
+	case 102:
+		return &SyscallS{}
+	case 103:
+		return &SyscallSS{}
 	}
 	return nil
 }

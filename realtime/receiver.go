@@ -57,6 +57,10 @@ type (
 			LsassPid int `json:"lsass_pid,omitempty"`
 			// DumpTlsKeys event (response).
 			TlsKeys []TlsKeys `json:"tlskeys,omitempty"`
+
+			// Javascript event (+pid).
+			Code string `json:"code,omitempty"`
+			Meta string `json:"meta,omitempty"`
 		} `json:"body"`
 	}
 	Event struct {
@@ -149,6 +153,22 @@ func (es *EventServer) NetworkFlow(taskid int, proto int, srcip, dstip net.IP, s
 		event.Body.Body.Pid = int(process.Pid)
 		event.Body.Body.Ppid = int(process.Ppid)
 	}
+	es.sendEvent(event)
+}
+
+func (es *EventServer) Javascript(taskid, pid int, code, meta string) {
+	// If not running in realtime.
+	if es.conn == nil {
+		return
+	}
+
+	event := Event{}
+	event.Type = "event"
+	event.Body.Event = "javascript"
+	event.Body.Body.TaskId = taskid
+	event.Body.Body.Pid = pid
+	event.Body.Body.Code = code
+	event.Body.Body.Meta = meta
 	es.sendEvent(event)
 }
 
@@ -276,9 +296,10 @@ func (es *EventServer) OnemonReaderPath(taskid int, filepath string) {
 			dispatcher.Process(v)
 		case *onemon.NetworkFlow:
 			dispatcher.NetworkFlow(v)
+		case *onemon.SyscallS, *onemon.SyscallSS:
+			dispatcher.Syscall(v)
 		}
 	}
-
 	es.Finished(taskid, "massurltask")
 }
 
@@ -315,7 +336,6 @@ func (es *EventServer) DumpTlsKeysPath(taskid int, pcap, bson string) {
 				tlskeys[session_id] = master_secret
 			}
 		}
-
 		es.TlsKeys(taskid, tlskeys)
 	}
 	es.Finished(taskid, "dumptls")
