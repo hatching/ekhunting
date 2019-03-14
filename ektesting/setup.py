@@ -8,7 +8,7 @@ setuptools.setup(
     version="0.1",
     author="Hatching International B.V",
     description="A functional testing package for Cuckoo MassURL analysis",
-    author_email="ricardo@hatching.io",
+    author_email="info@hatching.io",
     classifiers=[
         "Environment :: Console",
         "Natural Language :: English",
