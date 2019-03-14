@@ -22,6 +22,9 @@ class Settings(object):
         cls.cwd = cwd
         cls.event_ip = event_ip
         cls.event_port = event_port
+        if not webserver.startswith("http://") or \
+                not webserver.startswith("https://"):
+            webserver = "http://%s" % webserver
         cls.webserver = webserver
 
 settings = Settings()
@@ -31,7 +34,7 @@ def rand_string(n):
         random.choice(string.ascii_uppercase + string.digits) for _ in range(n)
     )
 
-def run_tests(tests=[]):
+def run_tests(tests=[], cleanup=False):
     passcount = 0
     for functest in tests:
         test = functest()
@@ -46,13 +49,14 @@ def run_tests(tests=[]):
             log.exception("Exception while starting test '%s'", test.name)
             continue
         finally:
-            test.cleanup()
+            if cleanup:
+                test.cleanup()
 
         if passed:
-            log.info("Test '%s': Passed", test.name)
+            log.info("Test '%s': \x1b[32m\x1b[1mPassed\x1b[0m", test.name)
             passcount += 1
         else:
-            log.info("Test '%s': Failed", test.name)
+            log.info("Test '%s': \x1b[31m\x1b[1mFailed\x1b[0m", test.name)
             log.info("Reason: %s", test.failreason)
             log.info("Possible fix: %s", test.failfix)
             if test.stop_on_fail:

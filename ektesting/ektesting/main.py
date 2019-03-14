@@ -46,11 +46,19 @@ def list():
 
 @main.command()
 @click.argument("test_names", nargs=-1, required=True)
-def run(test_names):
+@click.option("-c", "--cleanup", is_flag=True, help="Delete items created by the tests")
+def run(test_names, cleanup):
     """Run one or more specified tests"""
-    run_tests(tests=[tests.get(n) for n in test_names if n in tests])
+    run_tests(
+        tests=[tests.get(n) for n in test_names if n in tests],
+        cleanup=cleanup
+    )
 
 @main.command()
-def runall():
+@click.option("-c", "--cleanup", is_flag=True, help="Delete items created by the tests")
+def runall(cleanup):
     """Run all available tests"""
-    run_tests(tests=sorted(tests.values(), key=lambda x: x.order, reverse=True))
+    run_tests(
+        tests=sorted(tests.values(), key=lambda x: x.order, reverse=True),
+        cleanup=cleanup
+    )
