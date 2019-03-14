@@ -26,7 +26,7 @@ class UseEventServer(FuncTest):
             self.eventtest = True
 
     def start(self):
-        if not self.ev.start():
+        if not self.ev.start(2):
             return self.markfail(
                 "Connecting to eventserver failed",
                 fix="Verify if the event server is online and this machine's"
@@ -35,7 +35,7 @@ class UseEventServer(FuncTest):
 
         self.ev.subscribe(self._handle_event, "ekhuntingtest")
         ev2 = EventClient(self.settings.event_ip, self.settings.event_port)
-        ev2.start()
+        ev2.start(2)
         ev2.send_event("ekhuntingtest", {"data": "test"})
         time.sleep(3)
         if not self.eventtest:

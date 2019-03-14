@@ -23,6 +23,7 @@ class RigEKSubmit(FuncTest):
         self.group_id = None
 
     def start(self):
+        log.debug("Using group with name '%s'", self.groupname)
         tags = {t.name:t.id for t in db.db.list_tags()}
         profile_tags = ["windows7", "ie11", "flash2000228"]
         for t in profile_tags:
@@ -44,10 +45,11 @@ class RigEKSubmit(FuncTest):
         rigekurl = "%s/rigekexploit.html" % settings.webserver
         try:
             urllib2.urlopen(rigekurl).read()
-        except Exception:
+        except Exception as e:
+            log.exception("Error: %s", e)
             return self.markfail(
                 "Failed to perform GET request to URL '%s'" % rigekurl,
-                fix="Use the mini webserver in the 'scripts' folder to serve "
+                fix="Use the mini webserver in the 'data' folder to serve "
                     "the files in the 'data' folder. Make sure the current "
                     "server is allowed to connect to it."
             )
@@ -79,7 +81,7 @@ class RigEKSubmit(FuncTest):
             return self.markpass()
         else:
             return self.markfail(
-                "Group has completed, but level 3 alerts exist. One level 3 "
+                "Group has completed, but no level 3 alerts exist. One level 3"
                 "alert was expected.",
                 fix="Make sure the analysis VM has internet explorer 11 with "
                     "Flash 20.0.0.228 installed using VMCloak. "
