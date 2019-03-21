@@ -56,11 +56,11 @@ func (d *Dispatch) Syscall(obj interface{}) {
 	switch v := obj.(type) {
 	case *onemon.SyscallS:
 		if v.Kind == onemon.SyscallSKind_JsGlobalObjectDefaultEvalHelper {
-			d.es.Javascript(d.taskid, int(v.Pid), v.Arg0, "no context")
+			d.es.Javascript(d.taskid, v.Arg0, "no context", d.tree[int(v.Pid)])
 		}
 	case *onemon.SyscallSS:
 		if v.Kind == onemon.SyscallSSKind_COleScript_Compile {
-			d.es.Javascript(d.taskid, int(v.Pid), v.Arg0, v.Arg1)
+			d.es.Javascript(d.taskid, v.Arg0, v.Arg1, d.tree[int(v.Pid)])
 		}
 	}
 }

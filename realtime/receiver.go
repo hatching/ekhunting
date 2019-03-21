@@ -156,7 +156,7 @@ func (es *EventServer) NetworkFlow(taskid int, proto int, srcip, dstip net.IP, s
 	es.sendEvent(event)
 }
 
-func (es *EventServer) Javascript(taskid, pid int, code, meta string) {
+func (es *EventServer) Javascript(taskid int, code, meta string, process *onemon.Process) {
 	// If not running in realtime.
 	if es.conn == nil {
 		return
@@ -166,9 +166,12 @@ func (es *EventServer) Javascript(taskid, pid int, code, meta string) {
 	event.Type = "event"
 	event.Body.Event = "javascript"
 	event.Body.Body.TaskId = taskid
-	event.Body.Body.Pid = pid
 	event.Body.Body.Code = code
 	event.Body.Body.Meta = meta
+	if process != nil {
+		event.Body.Body.Pid = int(process.Pid)
+		event.Body.Body.Ppid = int(process.Ppid)
+	}
 	es.sendEvent(event)
 }
 
