@@ -1,1 +1,8 @@
 site_name: Mass URL analysis
+nav:
+- Home: 'index.md'
+- Installation:
+    - 'Installation steps': 'installsteps.md'
+- Usage:
+    - 'Web API': 'webapi.md'
+    - 'Operator dashboard': 'dashboard.md'
