@@ -16,4 +16,4 @@ Every new analysis, a new URL diary is created for each analyzed URL. The full U
 Cuckoo MassURL comes with a operator dashboard which an operator can use to fully use MassURL. It is where URL groups are created, results are viewed, and most important: where the live events will be shown in cause of a possible malware infection of one of the analyzed webpages.
 
 ### Setting up
-The setup steps can be found at [setup steps](installsteps#Installation steps)
+The setup steps can be found at [setup steps](install/installsteps)

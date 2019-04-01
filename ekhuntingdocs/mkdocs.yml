@@ -1,8 +1,19 @@
 site_name: Mass URL analysis
+theme:
+  name: 'readthedocs'
+markdown_extensions:
+  - admonition
+  - attr_list
 nav:
-- Home: 'index.md'
-- Installation:
-    - 'Installation steps': 'installsteps.md'
-- Usage:
-    - 'Web API': 'webapi.md'
-    - 'Operator dashboard': 'dashboard.md'
+  - Home: 'index.md'
+  - Installation:
+    - 'Instruction': 'install/installsteps.md'
+    - 'Configuration': 'install/config.md'
+  - Web API: 'webapi.md'
+  - Operator dashboard:
+    - 'Alerts': 'dashboard/alerts.md'
+    - 'URL Groups': 'dashboard/urlgroups.md'
+    - 'URL Diaries': 'dashboard/urldiaries.md'
+    - 'Analysis profiles': 'dashboard/profiles.md'
+    - 'URL Diary signatures': 'dashboard/signatures.md'
+  - Components: 'terminology.md'
