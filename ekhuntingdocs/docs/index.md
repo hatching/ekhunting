@@ -17,3 +17,7 @@ Cuckoo MassURL comes with a operator dashboard which an operator can use to full
 
 ### Setting up
 The setup steps can be found at [setup steps](install/installsteps)
+
+---
+
+![CEF_logo](dashboard/images/cef_logo.png){width=500}
