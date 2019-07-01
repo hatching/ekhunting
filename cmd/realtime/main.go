@@ -4,33 +4,26 @@
 package main
 
 import (
-	"log"
-	"os"
-	"time"
-
 	"github.com/hatching/ekhunting/realtime"
 	"github.com/hatching/ekhunting/realtime/signatures"
+	"log"
+	"os"
 )
 
 func main() {
 	es := realtime.EventServer{}
+	es.InitApps()
 	es.SetSignatures(signatures.Signatures)
-
-	// Development switch, processes a onemon.pb file.
-	if len(os.Args) == 2 {
-		es.OnemonReaderPath(0, os.Args[1])
-		return
-	}
 
 	if len(os.Args) != 3 {
 		log.Fatalln(os.Args[0], "<addr> <cwd>")
 	}
 
+	wait := make(chan int)
+
 	es.Connect(os.Args[1])
 	es.SetCwd(os.Args[2])
 	es.Subscribe("massurltask", "dumptls")
 
-	for {
-		time.Sleep(100 * time.Millisecond)
-	}
+	<-wait
 }
