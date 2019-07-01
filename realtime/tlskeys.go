@@ -12,7 +12,7 @@ import (
 
 	"github.com/hatching/gopacket"
 	"github.com/hatching/gopacket/layers"
-	"github.com/hatching/gopacket/pcap"
+	"github.com/hatching/gopacket/pcapgo"
 	"gopkg.in/mgo.v2/bson"
 )
 
@@ -23,12 +23,7 @@ type Monitor struct {
 	Args interface{} `bson:"args,omitempty"`
 }
 
-func ReadPcapTlsSessions(fname string) (map[string]string, error) {
-	handle, err := pcap.OpenOffline(fname)
-	if err != nil {
-		return nil, fmt.Errorf("error opening pcap: %s", err)
-	}
-
+func ReadPcapTlsSessions(handle *pcapgo.Reader) (map[string]string, error) {
 	ret := map[string]string{}
 	source := gopacket.NewPacketSource(handle, handle.LinkType())
 	for packet := range source.Packets() {
@@ -58,6 +53,7 @@ func ReadPcapTlsSessions(fname string) (map[string]string, error) {
 			}
 		}
 	}
+
 	return ret, nil
 }
 
@@ -79,6 +75,7 @@ func ReadBsonTlsKeys(fname string) (map[string]string, error) {
 	if err != nil {
 		return nil, fmt.Errorf("error opening bson: %s", err)
 	}
+	defer f.Close()
 
 	m := map[int]string{}
 	arg := map[int]map[string]int{}
