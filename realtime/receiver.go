@@ -455,7 +455,7 @@ func (es *EventServer) HandleOnemon(body EventBody) {
 		}
 		if tries > 60 {
 			es.Error(body.Body.TaskId, "Timeout while waiting for .pb file to be created")
-			break
+			return
 		}
 		if err != nil {
 			log.Fatalln("error", err)
@@ -519,7 +519,6 @@ func (es *EventServer) DumpTlsKeys(body EventBody) {
 	}
 
 	pcap_keys, err := ReadPcapTlsSessions(pcap_reader.r)
-
 	if err != nil {
 		if err == io.EOF {
 			es.Finished(body.Body.TaskId, "dumptls")
