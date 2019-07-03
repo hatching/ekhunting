@@ -4,10 +4,11 @@
 package main
 
 import (
-	"github.com/hatching/ekhunting/realtime"
-	"github.com/hatching/ekhunting/realtime/signatures"
 	"log"
 	"os"
+
+	"github.com/hatching/ekhunting/realtime"
+	"github.com/hatching/ekhunting/realtime/signatures"
 )
 
 func main() {

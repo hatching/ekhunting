@@ -4,10 +4,10 @@
 package signatures
 
 import (
-	"github.com/hatching/ekhunting/realtime/events/onemon"
+	"fmt"
 	"regexp"
 
-	"fmt"
+	"github.com/hatching/ekhunting/realtime/events/onemon"
 )
 
 type ChildProcess struct {
