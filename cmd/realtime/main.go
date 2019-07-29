@@ -24,7 +24,7 @@ func main() {
 
 	es.Connect(os.Args[1])
 	es.SetCwd(os.Args[2])
-	es.Subscribe("massurltask", "dumptls")
+	es.Subscribe("massurltask", "dumptls", "longtermtask")
 
 	<-wait
 }
