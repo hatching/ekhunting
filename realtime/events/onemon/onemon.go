@@ -5,7 +5,9 @@ package onemon
 
 import (
 	"errors"
+	"fmt"
 	"io"
+	"os"
 
 	"github.com/golang/protobuf/proto"
 )
@@ -14,8 +16,8 @@ var (
 	ErrUnsupported = errors.New("Unsupported message type")
 )
 
-func NextMessage(r io.Reader) (interface{}, error) {
-	kind, data, err := NextEvent(r)
+func NextMessage(f *os.File) (interface{}, error) {
+	kind, data, err := NextEvent(f)
 	if err != nil {
 		return nil, err
 	}
@@ -24,35 +26,50 @@ func NextMessage(r io.Reader) (interface{}, error) {
 		return nil, ErrUnsupported
 	}
 	err = proto.Unmarshal(data, e)
+	if err != nil {
+		fmt.Println("Error during unmarshal:", err)
+	}
 	return e, err
 }
 
-func readAll(r io.Reader, buf []byte) (err error) {
+func readAll(f *os.File, buf []byte) (read int, err error) {
 	remain := len(buf)
 	for remain > 0 {
-		n, err := r.Read(buf)
+		n, err := f.Read(buf)
+		read += n
 		if err != nil {
-			return err
+			return read, err
 		}
 		remain -= n
 		buf = buf[n:]
 	}
-	return nil
+	return read, nil
 }
 
-func NextEvent(r io.Reader) (kind int, data []byte, err error) {
-	var header [4]byte
+func SetPreviousPos(f *os.File, hsz, bsz int) {
+	f.Seek(-int64(hsz+bsz), io.SeekCurrent)
+}
+
+func NextEvent(f *os.File) (kind int, data []byte, err error) {
+	header := make([]byte, 4)
 	// 3 byte size
 	// 1 byte kind
 	// <protobuf>
-	err = readAll(r, header[:])
+	read, err := readAll(f, header)
 	if err != nil {
+		if err == io.EOF {
+			SetPreviousPos(f, read, 0)
+		}
 		return 0, nil, err
 	}
 	sz := varint(header[:3])
+
 	kind = int(header[3])
 	data = make([]byte, sz)
-	err = readAll(r, data)
+	read, err = readAll(f, data)
+	if err == io.EOF || read < sz {
+		SetPreviousPos(f, len(header), read)
+	}
 	if err != nil {
 		return
 	}

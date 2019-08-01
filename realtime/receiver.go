@@ -16,33 +16,16 @@ import (
 	"time"
 
 	"github.com/hatching/ekhunting/realtime/events/onemon"
-	"github.com/hatching/gopacket/pcapgo"
+	"github.com/hatching/ekhunting/realtime/tracker"
 )
 
-type PcapReader struct {
-	closer io.Closer
-	r      *pcapgo.Reader
-}
-
-type FileReader struct {
-	closer io.Closer
-	r      *bufio.Reader
-}
-
-type Tracker struct {
-	paths      map[string]*FileReader
-	pcapreader *PcapReader
-	used       time.Time
-}
-
 type EventServer struct {
-	conn   net.Conn
-	mux    sync.Mutex
-	rbuf   *bufio.Reader
-	cwd    string
-	sigs   func() []Process
-	apps   map[string]*Tracker
-	appmux sync.Mutex
+	conn    net.Conn
+	mux     sync.Mutex
+	rbuf    *bufio.Reader
+	cwd     string
+	sigs    func() []Process
+	tracker *tracker.Trackers
 }
 
 type (
@@ -72,6 +55,7 @@ type (
 			Dstport int    `json:"dstport,omitempty"`
 			Pid     int    `json:"pid,omitempty"`
 			Ppid    int    `json:"ppid,omitempty"`
+			Image   string `json:"image,omitempty"`
 
 			// DumpTlsKeys event (request).
 			LsassPid int `json:"lsass_pid,omitempty"`
@@ -99,50 +83,12 @@ type (
 	}
 )
 
-func (es *EventServer) InitApps() {
-	es.apps = make(map[string]*Tracker)
-	go es.cleanFiles()
-}
-
-func (es *EventServer) SetSignatures(signatures func() []Process) {
-	es.sigs = signatures
-}
-
-func (es *EventServer) SetCwd(cwd string) {
-	es.cwd = cwd
-}
-
-func (es *EventServer) cleanFiles() {
-	for {
-		time.Sleep(time.Second * 30)
-		es.appmux.Lock()
-
-		now := time.Now()
-		for k, tracker := range es.apps {
-			if diff := now.Sub(tracker.used); diff > time.Minute*15 {
-				tracker.close()
-				fmt.Println("Cleaning tracker for appid:", k)
-				delete(es.apps, k)
-			}
-		}
-		es.appmux.Unlock()
+func New(cwd string, signatures func() []Process) *EventServer {
+	return &EventServer{
+		cwd:     cwd,
+		sigs:    signatures,
+		tracker: tracker.New(),
 	}
-}
-
-func (t *Tracker) close() {
-	if t.pcapreader != nil {
-		err := t.pcapreader.closer.Close()
-		if err != nil {
-			log.Println("Error closing PCAP reader", err)
-		}
-		for k, fr := range t.paths {
-			err := fr.closer.Close()
-			if err != nil {
-				log.Println("Error closing file", k, err)
-			}
-		}
-	}
-
 }
 
 func (es *EventServer) sendEvent(event interface{}) {
@@ -210,6 +156,7 @@ func (es *EventServer) NetworkFlow(taskid int, proto int, srcip, dstip net.IP, s
 	if process != nil {
 		event.Body.Body.Pid = int(process.Pid)
 		event.Body.Body.Ppid = int(process.Ppid)
+		event.Body.Body.Image = process.Image
 	}
 	es.sendEvent(event)
 }
@@ -313,98 +260,9 @@ func (es *EventServer) Handle(body EventBody) {
 
 }
 
-// Return a FileReader for a given file path. If an app ID is provided, a previously
-// used reader will be returned for that given path and ID.
-func (es *EventServer) GetFileReader(filepath, appid string) (*FileReader, error) {
-	if appid == "" {
-		f, err := os.Open(filepath)
-		if err != nil {
-			return nil, err
-		}
-		return &FileReader{
-			closer: f,
-			r:      bufio.NewReader(f),
-		}, nil
-	}
-
-	es.appmux.Lock()
-	defer es.appmux.Unlock()
-
-	if _, ok := es.apps[appid]; !ok {
-		es.CreateTracker(appid)
-	}
-
-	tracker := es.apps[appid]
-
-	if _, ok := tracker.paths[filepath]; !ok {
-		f, err := os.Open(filepath)
-		if err != nil {
-			return nil, err
-		}
-
-		tracker.paths[filepath] = &FileReader{
-			closer: f,
-			r:      bufio.NewReader(f),
-		}
-	}
-
-	tracker.used = time.Now()
-	return tracker.paths[filepath], nil
-}
-
-func (es *EventServer) GetPcapReader(pcap_path, appid string) (*PcapReader, error) {
-	if appid == "" {
-		f, err := os.Open(pcap_path)
-		if err != nil {
-			return nil, err
-		}
-		reader, err := pcapgo.NewReader(f)
-		if err != nil {
-			return nil, err
-		}
-		return &PcapReader{
-			closer: f,
-			r:      reader,
-		}, nil
-	}
-
-	es.appmux.Lock()
-	defer es.appmux.Unlock()
-
-	if _, ok := es.apps[appid]; !ok {
-		es.CreateTracker(appid)
-	}
-	tracker := es.apps[appid]
-
-	if tracker.pcapreader == nil {
-		f, err := os.Open(pcap_path)
-		if err != nil {
-			return nil, err
-		}
-		reader, err := pcapgo.NewReader(f)
-		if err != nil {
-			return nil, err
-		}
-		tracker.pcapreader = &PcapReader{
-			closer: f,
-			r:      reader,
-		}
-	}
-	tracker.used = time.Now()
-
-	return tracker.pcapreader, nil
-}
-
-func (es *EventServer) CreateTracker(appid string) {
-	es.apps[appid] = &Tracker{
-		paths: make(map[string]*FileReader),
-		used:  time.Now(),
-	}
-}
-
-func (es *EventServer) ReadMassURLEvents(r *bufio.Reader, dispatcher Dispatch) {
+func (es *EventServer) ReadMassURLEvents(f *os.File, dispatcher Dispatch) {
 	for {
-		msg, err := onemon.NextMessage(r)
+		msg, err := onemon.NextMessage(f)
 
 		if err == io.EOF {
 			break
@@ -421,15 +279,18 @@ func (es *EventServer) ReadMassURLEvents(r *bufio.Reader, dispatcher Dispatch) {
 	}
 }
 
-func (es *EventServer) ReadLongtermEvents(r *bufio.Reader, dispatcher Dispatch) {
+func (es *EventServer) ReadLongtermEvents(f *os.File, dispatcher Dispatch) {
+
 	for {
-		msg, err := onemon.NextMessage(r)
+		msg, err := onemon.NextMessage(f)
 
 		if err == io.EOF {
 			break
 		}
 
 		switch v := msg.(type) {
+		case *onemon.Process:
+			dispatcher.TrackProcess(v)
 		case *onemon.NetworkFlow:
 			dispatcher.NetworkFlow(v)
 		}
@@ -442,8 +303,9 @@ func (es *EventServer) HandleOnemon(body EventBody) {
 		"logs", "onemon.pb",
 	)
 
+	tree := es.tracker.GetProcessTree(body.Body.AppId)
 	dispatcher := &Dispatch{}
-	dispatcher.Init(es, body.Body.TaskId, es.sigs())
+	dispatcher.Init(es, body.Body.TaskId, es.sigs(), tree)
 
 	tries := 0
 	for {
@@ -463,27 +325,21 @@ func (es *EventServer) HandleOnemon(body EventBody) {
 		break
 	}
 
-	fr, err := es.GetFileReader(onemonpath, body.Body.AppId)
+	f, err := es.tracker.GetFile(onemonpath, body.Body.AppId)
 	if err != nil {
 		log.Fatalln("error", err)
 	}
 
 	if body.Body.AppId == "" {
-		defer fr.closer.Close()
-	}
-
-	if b, _ := fr.r.Peek(4); string(b) == "FILE" {
-		// Skip file header
-		fr.r.ReadLine()
-		fr.r.ReadLine()
+		defer f.Close()
 	}
 
 	switch body.Event {
 	case "massurltask":
-		es.ReadMassURLEvents(fr.r, *dispatcher)
+		es.ReadMassURLEvents(f, *dispatcher)
 		es.Finished(body.Body.TaskId, "massurltask")
 	case "longtermtask":
-		es.ReadLongtermEvents(fr.r, *dispatcher)
+		es.ReadLongtermEvents(f, *dispatcher)
 		es.Finished(body.Body.TaskId, "longtermtask")
 	}
 
@@ -508,17 +364,17 @@ func (es *EventServer) DumpTlsKeys(body EventBody) {
 
 	}
 
-	pcap_reader, err := es.GetPcapReader(pcap, body.Body.AppId)
+	pcap_reader, err := es.tracker.GetPcapReader(pcap, body.Body.AppId)
 	if err != nil {
 		es.Error(body.Body.TaskId, fmt.Sprintf("Error opening PCAP file: %s", err))
 		return
 	}
 
 	if body.Body.AppId == "" {
-		defer pcap_reader.closer.Close()
+		defer pcap_reader.Closer.Close()
 	}
 
-	pcap_keys, err := ReadPcapTlsSessions(pcap_reader.r)
+	pcap_keys, err := ReadPcapTlsSessions(pcap_reader.Reader)
 
 	if err != nil {
 		if err == io.EOF {
