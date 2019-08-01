@@ -12,18 +12,15 @@ import (
 )
 
 func main() {
-	es := realtime.EventServer{}
-	es.InitApps()
-	es.SetSignatures(signatures.Signatures)
-
 	if len(os.Args) != 3 {
 		log.Fatalln(os.Args[0], "<addr> <cwd>")
 	}
 
+	es := realtime.New(os.Args[2], signatures.Signatures)
+
 	wait := make(chan int)
 
 	es.Connect(os.Args[1])
-	es.SetCwd(os.Args[2])
 	es.Subscribe("massurltask", "dumptls", "longtermtask")
 
 	<-wait

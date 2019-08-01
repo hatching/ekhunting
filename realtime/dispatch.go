@@ -22,15 +22,19 @@ type Dispatch struct {
 	tree       map[int]*onemon.Process
 }
 
-func (d *Dispatch) Init(es *EventServer, taskid int, signatures []Process) {
+func (d *Dispatch) Init(es *EventServer, taskid int, signatures []Process, tree map[int]*onemon.Process) {
 	d.taskid = taskid
 	d.es = es
 	d.signatures = signatures
-	d.tree = map[int]*onemon.Process{}
+	d.tree = tree
 	for _, signature := range d.signatures {
 		signature.SetTrigger(d.Trigger)
 		signature.Init()
 	}
+}
+
+func (d *Dispatch) TrackProcess(process *onemon.Process) {
+	d.tree[int(process.Pid)] = process
 }
 
 func (d *Dispatch) Process(process *onemon.Process) {
