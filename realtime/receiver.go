@@ -41,13 +41,14 @@ type (
 			Status string `json:"status,omitempty"`
 			Action string `json:"action,omitempty"`
 			Error  string `json:"error,omitempty"`
+			Ts     int    `json:"ts,omitempty"`
 
 			// Signature event.
 			Signature   string `json:"signature,omitempty"`
 			Description string `json:"description,omitempty"`
 			Ioc         string `json:"ioc,omitempty"`
 
-			// Netflow event.
+			// Netflow event. (+image)
 			Proto   int    `json:"proto,omitempty"`
 			Srcip   string `json:"srcip,omitempty"`
 			Dstip   string `json:"dstip,omitempty"`
@@ -55,7 +56,6 @@ type (
 			Dstport int    `json:"dstport,omitempty"`
 			Pid     int    `json:"pid,omitempty"`
 			Ppid    int    `json:"ppid,omitempty"`
-			Image   string `json:"image,omitempty"`
 
 			// DumpTlsKeys event (request).
 			LsassPid int `json:"lsass_pid,omitempty"`
@@ -65,6 +65,20 @@ type (
 			// Javascript event (+pid).
 			Code string `json:"code,omitempty"`
 			Meta string `json:"meta,omitempty"`
+
+			// Process event (+pid and ppid)
+			Image   string `json:"image,omitempty"`
+			Command string `json:"command,omitempty"`
+			Orig    bool   `json:"orig,omitempty"`
+
+			// File event
+			Operation string `json:"operation,omitempty"`
+			Path      string `json:"path,omitempty"`
+			DstPath   string `json:"dstpath,omitempty"`
+
+			// Registry event
+			ValueI *int    `json:"valuei,omitempty"`
+			ValueS *string `json:"values,omitempty"`
 		} `json:"body"`
 	}
 	Event struct {
@@ -92,6 +106,11 @@ func New(cwd string, signatures func() []Process) *EventServer {
 }
 
 func (es *EventServer) sendEvent(event interface{}) {
+	// If not running in realtime.
+	if es.conn == nil {
+		return
+	}
+
 	blob, err := json.Marshal(event)
 	if err != nil {
 		log.Fatalln("error marshalling event", err)
@@ -123,11 +142,6 @@ func (es *EventServer) Connect(addr string) {
 }
 
 func (es *EventServer) Trigger(taskid int, signature, description, ioc string) {
-	// If not running in realtime.
-	if es.conn == nil {
-		return
-	}
-
 	event := Event{}
 	event.Type = "event"
 	event.Body.Event = "signature"
@@ -138,16 +152,12 @@ func (es *EventServer) Trigger(taskid int, signature, description, ioc string) {
 	es.sendEvent(event)
 }
 
-func (es *EventServer) NetworkFlow(taskid int, proto int, srcip, dstip net.IP, srcport, dstport int, process *onemon.Process) {
-	// If not running in realtime.
-	if es.conn == nil {
-		return
-	}
-
+func (es *EventServer) NetworkFlow(ts, taskid int, proto int, srcip, dstip net.IP, srcport, dstport int, process *onemon.Process) {
 	event := Event{}
 	event.Type = "event"
 	event.Body.Event = "netflow"
 	event.Body.Body.TaskId = taskid
+	event.Body.Body.Ts = ts
 	event.Body.Body.Proto = proto
 	event.Body.Body.Srcip = srcip.String()
 	event.Body.Body.Dstip = dstip.String()
@@ -161,12 +171,55 @@ func (es *EventServer) NetworkFlow(taskid int, proto int, srcip, dstip net.IP, s
 	es.sendEvent(event)
 }
 
-func (es *EventServer) Javascript(taskid int, code, meta string, process *onemon.Process) {
-	// If not running in realtime.
-	if es.conn == nil {
-		return
+func (es *EventServer) registry(ts, taskid, pid, valuei int, operation, path, values string) {
+	event := &Event{}
+	event.Type = "event"
+	event.Body.Event = "registry"
+	event.Body.Body.TaskId = taskid
+	event.Body.Body.Ts = ts
+	event.Body.Body.Pid = pid
+	event.Body.Body.Operation = operation
+	event.Body.Body.Path = path
+	if operation == "SetValueKeyInt" {
+		event.Body.Body.ValueI = &valuei
+	} else if operation == "SetValueKeyStr" || operation == "SetValueKeyDat" {
+		event.Body.Body.ValueS = &values
 	}
 
+	es.sendEvent(event)
+}
+
+func (es *EventServer) File(ts, taskid, pid int, operation, srcpath, dstpath string) {
+	event := &Event{}
+	event.Type = "event"
+	event.Body.Event = "file"
+	event.Body.Body.TaskId = taskid
+	event.Body.Body.Ts = ts
+	event.Body.Body.Pid = pid
+	event.Body.Body.Operation = operation
+	event.Body.Body.Path = srcpath
+	event.Body.Body.DstPath = dstpath
+
+	es.sendEvent(event)
+}
+
+func (es *EventServer) Process(ts, taskid, pid, ppid int, procstatus, image, command string, orig bool) {
+	event := &Event{}
+	event.Type = "event"
+	event.Body.Event = "process"
+	event.Body.Body.TaskId = taskid
+	event.Body.Body.Ts = ts
+	event.Body.Body.Pid = pid
+	event.Body.Body.Ppid = ppid
+	event.Body.Body.Operation = procstatus
+	event.Body.Body.Image = image
+	event.Body.Body.Command = command
+	event.Body.Body.Orig = orig
+
+	es.sendEvent(event)
+}
+
+func (es *EventServer) Javascript(taskid int, code, meta string, process *onemon.Process) {
 	event := Event{}
 	event.Type = "event"
 	event.Body.Event = "javascript"
@@ -181,11 +234,6 @@ func (es *EventServer) Javascript(taskid int, code, meta string, process *onemon
 }
 
 func (es *EventServer) TlsKeys(taskid int, tlskeys map[string]string) {
-	// If not running in realtime.
-	if es.conn == nil {
-		return
-	}
-
 	event := Event{}
 	event.Type = "event"
 	event.Body.Event = "tlskeys"
@@ -201,11 +249,6 @@ func (es *EventServer) TlsKeys(taskid int, tlskeys map[string]string) {
 }
 
 func (es *EventServer) Error(taskid int, err string) {
-	// If not running in realtime.
-	if es.conn == nil {
-		return
-	}
-
 	event := Event{}
 	event.Type = "event"
 	event.Body.Event = "error"
@@ -215,11 +258,6 @@ func (es *EventServer) Error(taskid int, err string) {
 }
 
 func (es *EventServer) Finished(taskid int, action string) {
-	// If not running in realtime.
-	if es.conn == nil {
-		return
-	}
-
 	event := Event{}
 	event.Type = "event"
 	event.Body.Event = "finished"
@@ -293,6 +331,10 @@ func (es *EventServer) ReadLongtermEvents(f *os.File, dispatcher Dispatch) {
 			dispatcher.TrackProcess(v)
 		case *onemon.NetworkFlow:
 			dispatcher.NetworkFlow(v)
+		case *onemon.File:
+			dispatcher.File(v)
+		case *onemon.Registry:
+			dispatcher.Registry(v)
 		}
 	}
 }

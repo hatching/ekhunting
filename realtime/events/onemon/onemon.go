@@ -89,6 +89,10 @@ func MessageByType(kind int) proto.Message {
 	switch kind {
 	case 1:
 		return &Process{}
+	case 2:
+		return &Registry{}
+	case 8:
+		return &File{}
 	case 12:
 		return &NetworkFlow{}
 	case 102:
