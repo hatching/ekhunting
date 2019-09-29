@@ -41,7 +41,7 @@ type (
 			Status string `json:"status,omitempty"`
 			Action string `json:"action,omitempty"`
 			Error  string `json:"error,omitempty"`
-			Ts     int    `json:"ts,omitempty"`
+			Ts     *int    `json:"ts,omitempty"`
 
 			// Signature event.
 			Signature   string `json:"signature,omitempty"`
@@ -157,7 +157,7 @@ func (es *EventServer) NetworkFlow(ts, taskid int, proto int, srcip, dstip net.I
 	event.Type = "event"
 	event.Body.Event = "netflow"
 	event.Body.Body.TaskId = taskid
-	event.Body.Body.Ts = ts
+	event.Body.Body.Ts = &ts
 	event.Body.Body.Proto = proto
 	event.Body.Body.Srcip = srcip.String()
 	event.Body.Body.Dstip = dstip.String()
@@ -176,7 +176,7 @@ func (es *EventServer) registry(ts, taskid, pid, valuei int, operation, path, va
 	event.Type = "event"
 	event.Body.Event = "registry"
 	event.Body.Body.TaskId = taskid
-	event.Body.Body.Ts = ts
+	event.Body.Body.Ts = &ts
 	event.Body.Body.Pid = pid
 	event.Body.Body.Operation = operation
 	event.Body.Body.Path = path
@@ -194,7 +194,7 @@ func (es *EventServer) File(ts, taskid, pid int, operation, srcpath, dstpath str
 	event.Type = "event"
 	event.Body.Event = "file"
 	event.Body.Body.TaskId = taskid
-	event.Body.Body.Ts = ts
+	event.Body.Body.Ts = &ts
 	event.Body.Body.Pid = pid
 	event.Body.Body.Operation = operation
 	event.Body.Body.Path = srcpath
@@ -208,7 +208,7 @@ func (es *EventServer) Process(ts, taskid, pid, ppid int, procstatus, image, com
 	event.Type = "event"
 	event.Body.Event = "process"
 	event.Body.Body.TaskId = taskid
-	event.Body.Body.Ts = ts
+	event.Body.Body.Ts = &ts
 	event.Body.Body.Pid = pid
 	event.Body.Body.Ppid = ppid
 	event.Body.Body.Operation = procstatus
